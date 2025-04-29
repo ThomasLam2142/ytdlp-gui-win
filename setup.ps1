@@ -1,108 +1,50 @@
-# Function to check Python version
-function Check-PythonVersion {
+# Set Python version and download URL
+$pythonVersion = "3.12.2"
+$installerUrl = "https://www.python.org/ftp/python/$pythonVersion/python-$pythonVersion-amd64.exe"
+$installerPath = "$PSScriptRoot\python-$pythonVersion-amd64.exe"
+
+function Check-Python312 {
     try {
-        $pythonVersion = python --version 2>&1
-        if ($pythonVersion -match 'Python 3\.12\.\d+') {
-            Write-Host "Python 3.12 is installed"
-            return $true
-        }
-        else {
-            Write-Host "Python 3.12 is not installed. Current version: $pythonVersion"
-            return $false
-        }
-    }
-    catch {
-        Write-Host "Python is not installed or not in PATH"
+        $output = & python --version 2>$null
+        return $output -match "Python 3\.12"
+    } catch {
         return $false
     }
 }
 
-# Function to download Python installer
-function Download-Python {
-    $pythonUrl = "https://www.python.org/ftp/python/3.12.0/python-3.12.0-amd64.exe"
-    $installerPath = Join-Path $env:TEMP "python-3.12.0-amd64.exe"
-    
-    Write-Host "Downloading Python 3.12 installer..."
-    Invoke-WebRequest -Uri $pythonUrl -OutFile $installerPath
-    
-    return $installerPath
+function Check-Venv {
+    try {
+        & python -m venv --help > $null 2>&1
+        return $LASTEXITCODE -eq 0
+    } catch {
+        return $false
+    }
 }
 
-# Function to install Python
 function Install-Python {
-    $installerPath = Download-Python
-    
-    Write-Host "Installing Python 3.12..."
-    Start-Process -FilePath $installerPath -ArgumentList "/quiet InstallAllUsers=1 PrependPath=1 Include_test=0" -Wait
-    
-    # Refresh the PATH environment variable
-    $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
-    
-    # Verify installation
-    if (Check-PythonVersion) {
-        Write-Host "Python 3.12 installation completed successfully!"
-    }
-    else {
-        Write-Host "Error: Python installation failed"
-        return $false
-    }
-    
-    return $true
+    Write-Output "Downloading Python $pythonVersion installer..."
+    Invoke-WebRequest -Uri $installerUrl -OutFile $installerPath
+
+    Write-Output "Installing Python $pythonVersion silently..."
+    Start-Process -FilePath $installerPath -ArgumentList `
+        "/quiet", "InstallAllUsers=1", "PrependPath=1", "Include_pip=1", "Include_venv=1" `
+        -Wait -NoNewWindow
+
+    Remove-Item $installerPath -Force
+    Write-Output "Python $pythonVersion installation complete."
 }
 
-# Function to check virtual environment
-function Check-VirtualEnvironment {
-    try {
-        if (Test-Path -Path "venv") {
-            Write-Host "Virtual environment directory exists"
-            return $true
-        }
-        else {
-            Write-Host "Virtual environment directory not found"
-            return $false
-        }
-    }
-    catch {
-        Write-Host "Error checking virtual environment: $_"
-        return $false
-    }
-}
+# --- MAIN ---
+if (Check-Python312) {
+    Write-Output "Python 3.12 is in PATH."
 
-# Main script execution
-Write-Host "Checking Python 3.12 installation..."
-$pythonCheck = Check-PythonVersion
-
-if (-not $pythonCheck) {
-    $installPython = Read-Host "Python 3.12 is not installed. Would you like to install it? (Y/N)"
-    if ($installPython -eq 'Y' -or $installPython -eq 'y') {
+    if (Check-Venv) {
+        Write-Output "venv module is available."
+    } else {
+        Write-Output "venv module is missing. Reinstalling Python..."
         Install-Python
-        $pythonCheck = Check-PythonVersion
     }
-}
-
-Write-Host "`nChecking virtual environment..."
-$venvCheck = Check-VirtualEnvironment
-
-# Summary
-Write-Host "`nSummary:"
-if ($pythonCheck -and $venvCheck) {
-    Write-Host "All checks passed! Python 3.12 and virtual environment are ready."
-}
-elseif ($pythonCheck -and !$venvCheck) {
-    Write-Host "Python 3.12 is installed, but virtual environment is missing."
-}
-elseif (!$pythonCheck -and $venvCheck) {
-    Write-Host "Python 3.12 is missing, but virtual environment exists."
-}
-else {
-    Write-Host "Both Python 3.12 and virtual environment are missing."
-}
-
-# Optional: Create virtual environment if missing
-if ($pythonCheck -and !$venvCheck) {
-    $createVenv = Read-Host "Would you like to create a new virtual environment? (Y/N)"
-    if ($createVenv -eq 'Y' -or $createVenv -eq 'y') {
-        python -m venv venv
-        Write-Host "Virtual environment created successfully!"
-    }
+} else {
+    Write-Output "Python 3.12 not found. Installing now..."
+    Install-Python
 }
