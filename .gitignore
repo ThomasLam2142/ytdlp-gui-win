@@ -1,0 +1,6 @@
+yt-dlp
+venv
+__pycache__ 
+
+*.webm
+*.mp4

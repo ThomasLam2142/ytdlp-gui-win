@@ -1,50 +1,52 @@
-# Set Python version and download URL
-$pythonVersion = "3.12.2"
-$installerUrl = "https://www.python.org/ftp/python/$pythonVersion/python-$pythonVersion-amd64.exe"
-$installerPath = "$PSScriptRoot\python-$pythonVersion-amd64.exe"
+# Check if python3.12 is available in the PATH
+$pythonVersion = & python --version 2>&1
 
-function Check-Python312 {
-    try {
-        $output = & python --version 2>$null
-        return $output -match "Python 3\.12"
-    } catch {
-        return $false
-    }
-}
-
-function Check-Venv {
-    try {
-        & python -m venv --help > $null 2>&1
-        return $LASTEXITCODE -eq 0
-    } catch {
-        return $false
-    }
-}
-
-function Install-Python {
-    Write-Output "Downloading Python $pythonVersion installer..."
-    Invoke-WebRequest -Uri $installerUrl -OutFile $installerPath
-
-    Write-Output "Installing Python $pythonVersion silently..."
-    Start-Process -FilePath $installerPath -ArgumentList `
-        "/quiet", "InstallAllUsers=1", "PrependPath=1", "Include_pip=1", "Include_venv=1" `
-        -Wait -NoNewWindow
-
-    Remove-Item $installerPath -Force
-    Write-Output "Python $pythonVersion installation complete."
-}
-
-# --- MAIN ---
-if (Check-Python312) {
-    Write-Output "Python 3.12 is in PATH."
-
-    if (Check-Venv) {
-        Write-Output "venv module is available."
-    } else {
-        Write-Output "venv module is missing. Reinstalling Python..."
-        Install-Python
-    }
+if ($pythonVersion -match "Python 3\.12") {
+    Write-Output "Python 3.12 is installed and available in PATH."
 } else {
-    Write-Output "Python 3.12 not found. Installing now..."
-    Install-Python
+    Write-Host "Python 3.12 is not installed. Installing..."
+
+    # Download the official Python 3.12 installer (64-bit Windows)
+    $pythonInstallerUrl = "https://www.python.org/ftp/python/3.12.0/python-3.12.0-amd64.exe"
+    $installerPath = "$env:TEMP\python-3.12.0-amd64.exe"
+    Invoke-WebRequest -Uri $pythonInstallerUrl -OutFile $installerPath
+
+    # Install Python silently for all users and add to PATH
+    Start-Process -Wait -FilePath $installerPath -ArgumentList "/quiet InstallAllUsers=1 PrependPath=1"
+
+    # Remove installer after installation
+    Remove-Item $installerPath
+
+    # Refresh the environment variables for the current session
+    $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine")
 }
+
+# Confirm Python version
+$newPythonVersion = & python --version 2>&1
+Write-Host "Python version now: $newPythonVersion"
+
+# Set virtual environment directory
+$venvDir = ".\venv"
+
+# Create virtual environment
+Write-Host "Creating virtual environment at: $venvDir"
+python -m venv $venvDir
+
+# Activate virtual environment
+$activateScript = Join-Path $venvDir "Scripts\Activate.ps1"
+if (Test-Path $activateScript) {
+    Write-Host "Activating virtual environment..."
+    & $activateScript
+} else {
+    Write-Warning "Virtual environment created, but activation script not found."
+}
+
+# Install dependencies
+Write-Host "Installing dependencies..."
+pip install -r requirements.txt
+
+# Confirm dependencies are installed
+Write-Host "Dependencies installed successfully."
+
+Write-Host "Setup complete."
+pause
