@@ -2,6 +2,7 @@ from PySide6.QtWidgets import QApplication, QWidget, QVBoxLayout, QLineEdit, QLa
 from PySide6.QtCore import Qt, QThread, Signal, QSize
 from PySide6.QtGui import QMovie
 import sys
+import os
 from yt_dlp import YoutubeDL
 
 class DownloadThread(QThread):
@@ -70,7 +71,9 @@ class MyWidget(QWidget):
         self.spinner.setAlignment(Qt.AlignHCenter)
         spinner_size = 48
         self.spinner.setFixedSize(spinner_size, spinner_size)
-        self.movie = QMovie("spinner.gif")
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        spinner_path = os.path.join(script_dir, "assets", "spinner.gif")
+        self.movie = QMovie(spinner_path)
         self.movie.setScaledSize(QSize(spinner_size, spinner_size))
         self.spinner.setMovie(self.movie)
         self.spinner.hide()
