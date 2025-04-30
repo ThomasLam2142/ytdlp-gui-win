@@ -1,4 +1,4 @@
-from PySide6.QtWidgets import QApplication, QWidget, QVBoxLayout, QLineEdit, QLabel, QPushButton
+from PySide6.QtWidgets import QApplication, QWidget, QVBoxLayout, QLineEdit, QLabel, QPushButton, QComboBox
 from PySide6.QtCore import Qt, QThread, Signal, QSize
 from PySide6.QtGui import QMovie
 import sys
@@ -7,14 +7,31 @@ from yt_dlp import YoutubeDL
 class DownloadThread(QThread):
     finished = Signal()
 
-    def __init__(self, url):
+    def __init__(self, url, format_code):
         super().__init__()
         self.url = url
+        self.format_code = format_code
 
     def run(self):
         ydl_opts = {
-            'outtmpl': '%(title)s.%(ext)s',  # Save with video title as filename
+            'outtmpl': '%(title)s.%(ext)s',
         }
+        # Handle format and postprocessors
+        if self.format_code == 'mp3':
+            ydl_opts['format'] = 'bestaudio/best'
+            ydl_opts['postprocessors'] = [{
+                'key': 'FFmpegExtractAudio',
+                'preferredcodec': 'mp3',
+                'preferredquality': '192',
+            }]
+        elif self.format_code == 'mp4':
+            ydl_opts['format'] = 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/mp4'
+            ydl_opts['merge_output_format'] = 'mp4'
+        elif self.format_code == 'webm':
+            ydl_opts['format'] = 'bestvideo[ext=webm]+bestaudio[ext=webm]/webm'
+            ydl_opts['merge_output_format'] = 'webm'
+        else:
+            ydl_opts['format'] = 'best'
         with YoutubeDL(ydl_opts) as ydl:
             ydl.download([self.url])
         self.finished.emit()
@@ -32,6 +49,12 @@ class MyWidget(QWidget):
         self.status_label.setAlignment(Qt.AlignHCenter)
         self.status_label.setStyleSheet("font-weight: bold; font-size: 18px;")
         main_layout.addWidget(self.status_label)
+
+
+        # Dropdown for format selection
+        self.format_combo = QComboBox()
+        self.format_combo.addItems(["best", "mp4", "webm", "mp3"])  # Add more as needed
+        main_layout.addWidget(self.format_combo)
 
         center_layout = QVBoxLayout()
         center_layout.setAlignment(Qt.AlignHCenter)
@@ -69,7 +92,8 @@ class MyWidget(QWidget):
             self.button.setEnabled(False)
             self.spinner.show()
             self.movie.start()
-            self.thread = DownloadThread(url)
+            selected_format = self.format_combo.currentText()
+            self.thread = DownloadThread(url,selected_format)
             self.thread.finished.connect(self.on_download_finished)
             self.thread.start()
 

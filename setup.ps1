@@ -28,9 +28,13 @@ Write-Host "Python version now: $newPythonVersion"
 # Set virtual environment directory
 $venvDir = ".\venv"
 
-# Create virtual environment
-Write-Host "Creating virtual environment at: $venvDir"
-python -m venv $venvDir
+if (Test-Path $venvDir) {
+    Write-Host "Virtual environment already exists at: $venvDir"
+} else {
+    # Create virtual environment
+    Write-Host "Creating virtual environment at: $venvDir"
+    python -m venv $venvDir
+}
 
 # Activate virtual environment
 $activateScript = Join-Path $venvDir "Scripts\Activate.ps1"
@@ -38,7 +42,7 @@ if (Test-Path $activateScript) {
     Write-Host "Activating virtual environment..."
     & $activateScript
 } else {
-    Write-Warning "Virtual environment created, but activation script not found."
+    Write-Warning "Virtual environment exists, but activation script not found."
 }
 
 # Install dependencies
