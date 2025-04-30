@@ -1,14 +1,16 @@
-# Check if python3.12 is available in the PATH
+Set-Location -Path $PSScriptRoot
+
+# Check if python3.11 is available in the PATH
 $pythonVersion = & python --version 2>&1
 
-if ($pythonVersion -match "Python 3\.12") {
-    Write-Output "Python 3.12 is installed and available in PATH."
+if ($pythonVersion -match "Python 3\.11") {
+    Write-Output "Python 3.11 is installed and available in PATH."
 } else {
-    Write-Host "Python 3.12 is not installed. Installing..."
+    Write-Host "Python 3.11 is not installed. Installing..."
 
-    # Download the official Python 3.12 installer (64-bit Windows)
-    $pythonInstallerUrl = "https://www.python.org/ftp/python/3.12.0/python-3.12.0-amd64.exe"
-    $installerPath = "$env:TEMP\python-3.12.0-amd64.exe"
+    # Download the official Python 3.11 installer (64-bit Windows)
+    $pythonInstallerUrl = "https://www.python.org/ftp/python/3.11.0/python-3.11.0-amd64.exe"
+    $installerPath = "$env:TEMP\python-3.11.0-amd64.exe"
     Invoke-WebRequest -Uri $pythonInstallerUrl -OutFile $installerPath
 
     # Install Python silently for all users and add to PATH
@@ -53,4 +55,10 @@ pip install -r requirements.txt
 Write-Host "Dependencies installed successfully."
 
 Write-Host "Setup complete."
+
+# Start the GUI application
+Write-Host "Starting GUI application..."
+python gui.py
+
+
 pause

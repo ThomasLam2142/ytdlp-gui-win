@@ -1,3 +1,5 @@
 @echo off
-powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0setup.ps1"
+cd /d "%~dp0"
+echo Now running from: %cd%
+powershell -ExecutionPolicy Bypass -File setup.ps1
 pause
