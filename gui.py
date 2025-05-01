@@ -1,6 +1,6 @@
 from PySide6.QtWidgets import QApplication, QWidget, QVBoxLayout, QLineEdit, QLabel, QPushButton, QComboBox
 from PySide6.QtCore import Qt, QThread, Signal, QSize
-from PySide6.QtGui import QMovie
+from PySide6.QtGui import QMovie, QPixmap
 import sys
 import os
 from yt_dlp import YoutubeDL
@@ -72,6 +72,16 @@ class MyWidget(QWidget):
 
         main_layout = QVBoxLayout()
         main_layout.addStretch(1)
+
+        # Add logo at the top
+        logo_label = QLabel()
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        logo_path = os.path.join(script_dir, "assets", "logo.png")
+        pixmap = QPixmap(logo_path)
+        pixmap = pixmap.scaledToHeight(500, Qt.SmoothTransformation)  
+        logo_label.setPixmap(pixmap)
+        logo_label.setAlignment(Qt.AlignHCenter)
+        main_layout.addWidget(logo_label)
 
         self.status_label = QLabel("")
         self.status_label.setAlignment(Qt.AlignHCenter)
