@@ -8,6 +8,7 @@ import imageio_ffmpeg
 
 class FetchFormatsThread(QThread):
     formats_ready = Signal(dict)
+    error = Signal(str)  # Signal for errors
 
     def __init__(self, url):
         super().__init__()
@@ -42,7 +43,8 @@ class FetchFormatsThread(QThread):
                         if desc not in audio_formats:
                             audio_formats[desc] = format_id
         except Exception as e:
-            pass
+            self.error.emit("Could not retrieve video information. Please check the URL.")
+            return
         self.formats_ready.emit({'video': video_formats, 'audio': audio_formats})
 
 class DownloadThread(QThread):
@@ -106,12 +108,11 @@ class MyWidget(QWidget):
             ("Audio Format:", "audio_format_combo")
         ]
         for label, name in dropdown_info:
-            main_layout.addWidget(QLabel(label))
             combo = QComboBox()
             combo.setEnabled(False)
+            combo.setFixedWidth(600)
             setattr(self, name, combo)  # Set as attribute for direct access
             self.dropdowns[name] = combo  # Store in dict for batch operations
-            main_layout.addWidget(combo)
 
         # Centered layout for main interactive controls
         center_layout = QVBoxLayout()
@@ -130,9 +131,26 @@ class MyWidget(QWidget):
         self.input.textChanged.connect(self.on_url_changed)
         self.check_button = QPushButton("Check Formats")
         self.check_button.clicked.connect(self.on_check_formats)
+
+        # URL validation label (hidden by default, red text)
+        self.url_error_label = QLabel("")
+        self.url_error_label.setStyleSheet("color: red; font-size: 14px;")
+        self.url_error_label.setAlignment(Qt.AlignHCenter)
+        self.url_error_label.hide()
+
+        for widget in [self.label, self.input, self.check_button, self.url_error_label]:
+            add_centered(center_layout, widget)
+
+        # Dropdowns
+        for label, name in dropdown_info:
+            center_layout.addWidget(QLabel(label), alignment=Qt.AlignHCenter)
+            combo = getattr(self, name)
+            add_centered(center_layout, combo)
+
         self.download_button = QPushButton("Download")
         self.download_button.setEnabled(False)
         self.download_button.clicked.connect(self.on_download)
+        add_centered(center_layout, self.download_button)
 
         # Spinner for progress indication
         self.spinner = QLabel()
@@ -149,10 +167,8 @@ class MyWidget(QWidget):
         self.transparent_spinner = transparent_pixmap
         self.spinner.setPixmap(self.transparent_spinner)
         self.spinner.setVisible(True)
+        add_centered(center_layout, self.spinner)
 
-        # Add widgets to center layout
-        for widget in [self.label, self.input, self.check_button, self.download_button, self.spinner]:
-            add_centered(center_layout, widget)
         main_layout.addLayout(center_layout)
         main_layout.addStretch(1)
         self.setLayout(main_layout)
@@ -174,32 +190,44 @@ class MyWidget(QWidget):
         combo.addItems(items)
         combo.setEnabled(bool(items))
 
+    def is_valid_url(self, url):
+        """Basic check for a valid YouTube URL."""
+        return url.startswith("http") and ("youtube.com" in url or "youtu.be" in url)
+
     def on_url_changed(self):
-        """
-        Reset dropdowns and state when the URL changes.
-        """
+        """Reset dropdowns and state when the URL changes. Show error if URL is invalid."""
+        url = self.input.text()
         for name in self.dropdowns:
             self.update_combo(self.dropdowns[name], [])
         self.download_button.setEnabled(False)
         self.checked_url = None
         self.status_label.setText("")
+        # Show/hide error label
+        if url and not self.is_valid_url(url):
+            self.url_error_label.setText("Invalid YouTube URL.")
+            self.url_error_label.show()
+        else:
+            self.url_error_label.hide()
 
     def on_check_formats(self):
-        """
-        Check available formats for the entered URL.
-        """
+        """Check available formats for the entered URL. Show error if invalid."""
         url = self.input.text()
-        if url:
-            self.status_label.setText("Checking formats...")
-            self.check_button.setEnabled(False)
-            self.show_spinner()
-            for name in self.dropdowns:
-                self.update_combo(self.dropdowns[name], [])
-            self.download_button.setEnabled(False)
-            # Start thread to fetch formats
-            self.fetch_thread = FetchFormatsThread(url)
-            self.fetch_thread.formats_ready.connect(self.populate_format_dropdowns)
-            self.fetch_thread.start()
+        if not self.is_valid_url(url):
+            self.url_error_label.setText("Invalid YouTube URL.")
+            self.url_error_label.show()
+            return
+        self.url_error_label.hide()
+        self.status_label.setText("Checking formats...")
+        self.check_button.setEnabled(False)
+        self.show_spinner()
+        for name in self.dropdowns:
+            self.update_combo(self.dropdowns[name], [])
+        self.download_button.setEnabled(False)
+        # Start thread to fetch formats
+        self.fetch_thread = FetchFormatsThread(url)
+        self.fetch_thread.formats_ready.connect(self.populate_format_dropdowns)
+        self.fetch_thread.error.connect(self.on_format_error)
+        self.fetch_thread.start()
 
     def populate_format_dropdowns(self, formats):
         """
@@ -279,6 +307,17 @@ class MyWidget(QWidget):
         self.hide_spinner()
         self.status_label.setText("Download Complete!")
 
+    def on_format_error(self, message):
+        """Show error label if yt-dlp cannot extract info from the URL."""
+        self.hide_spinner()
+        self.check_button.setEnabled(True)
+        self.url_error_label.setText(message)
+        self.url_error_label.show()
+        self.status_label.setText("")
+        for name in self.dropdowns:
+            self.update_combo(self.dropdowns[name], [])
+        self.download_button.setEnabled(False)
+
     def show_spinner(self):
         """
         Display the spinner animation.
@@ -315,7 +354,12 @@ QPushButton {
     padding: 5px;
     border-radius: 4px;
 }
-QPushButton:hover {
+QPushButton:disabled {
+    background-color: #222;
+    color: #888;
+    border: 1px solid #333;
+}
+QPushButton:hover:!disabled {
     background-color: #555;
 }
 QLabel {
