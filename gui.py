@@ -1,6 +1,6 @@
 from PySide6.QtWidgets import QApplication, QWidget, QVBoxLayout, QLineEdit, QLabel, QPushButton, QComboBox
 from PySide6.QtCore import Qt, QThread, Signal, QSize
-from PySide6.QtGui import QMovie, QPixmap
+from PySide6.QtGui import QMovie, QPixmap, QColor
 import sys
 import os
 from yt_dlp import YoutubeDL
@@ -68,7 +68,7 @@ class MyWidget(QWidget):
     def __init__(self):
         super().__init__()
         self.setWindowTitle('Youtube Downloader')
-        self.resize(800, 700)
+        self.resize(800, 900)
 
         main_layout = QVBoxLayout()
         main_layout.addStretch(1)
@@ -78,7 +78,7 @@ class MyWidget(QWidget):
         script_dir = os.path.dirname(os.path.abspath(__file__))
         logo_path = os.path.join(script_dir, "assets", "logo.png")
         pixmap = QPixmap(logo_path)
-        pixmap = pixmap.scaledToHeight(500, Qt.SmoothTransformation)  
+        pixmap = pixmap.scaledToHeight(300, Qt.SmoothTransformation)  
         logo_label.setPixmap(pixmap)
         logo_label.setAlignment(Qt.AlignHCenter)
         main_layout.addWidget(logo_label)
@@ -125,7 +125,12 @@ class MyWidget(QWidget):
         self.movie = QMovie(spinner_path)
         self.movie.setScaledSize(QSize(spinner_size, spinner_size))
         self.spinner.setMovie(self.movie)
-        self.spinner.hide()
+        # Transparent placeholder pixmap
+        transparent_pixmap = QPixmap(spinner_size, spinner_size)
+        transparent_pixmap.fill(QColor(0, 0, 0, 0))
+        self.transparent_spinner = transparent_pixmap
+        self.spinner.setPixmap(self.transparent_spinner)
+        self.spinner.setVisible(True)
 
         center_layout.addWidget(self.label, alignment=Qt.AlignHCenter)
         center_layout.addWidget(self.input, alignment=Qt.AlignHCenter)
@@ -161,8 +166,7 @@ class MyWidget(QWidget):
         if url:
             self.status_label.setText("Checking formats...")
             self.check_button.setEnabled(False)
-            self.spinner.show()
-            self.movie.start()
+            self.show_spinner()
             self.resolution_combo.clear()
             self.resolution_combo.setEnabled(False)
             self.video_format_combo.clear()
@@ -175,8 +179,7 @@ class MyWidget(QWidget):
             self.fetch_thread.start()
 
     def populate_format_dropdowns(self, formats):
-        self.movie.stop()
-        self.spinner.hide()
+        self.hide_spinner()
         self.check_button.setEnabled(True)
         self.checked_url = self.input.text() if formats['video'] or formats['audio'] else None
         self.video_formats = formats['video']
@@ -227,17 +230,25 @@ class MyWidget(QWidget):
         if video_format_id and audio_format_id and url:
             self.status_label.setText("Downloading...")
             self.download_button.setEnabled(False)
-            self.spinner.show()
-            self.movie.start()
+            self.show_spinner()
             self.thread = DownloadThread(url, f"{video_format_id}+{audio_format_id}")
             self.thread.finished.connect(self.on_download_finished)
             self.thread.start()
 
     def on_download_finished(self):
         self.download_button.setEnabled(True)
-        self.spinner.hide()
-        self.movie.stop()
+        self.hide_spinner()
         self.status_label.setText("Download Complete!")
+
+    def show_spinner(self):
+        self.spinner.setMovie(self.movie)
+        self.movie.start()
+        self.spinner.setVisible(True)
+
+    def hide_spinner(self):
+        self.movie.stop()
+        self.spinner.setPixmap(self.transparent_spinner)
+        self.spinner.setVisible(True)
 
 app = QApplication(sys.argv)
 
@@ -267,6 +278,12 @@ QLabel {
     font-size: 20pt;
 }
 QProgressBar {
+    background-color: #2b2b2b;
+    color: #F0F0F0;
+    border: 1px solid #444;
+}
+QComboBox {
+    font-size: 18pt;
     background-color: #2b2b2b;
     color: #F0F0F0;
     border: 1px solid #444;
