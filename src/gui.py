@@ -90,8 +90,8 @@ class MyWidget(QWidget):
 
         # Add logo at the top of the UI
         logo_label = QLabel()
-        script_dir = os.path.dirname(os.path.abspath(__file__))
-        logo_path = os.path.join(script_dir, "assets", "logo.png")
+        project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+        logo_path = os.path.join(project_root, "assets", "logo.png")
         pixmap = QPixmap(logo_path)
         pixmap = pixmap.scaledToHeight(300, Qt.SmoothTransformation)
         logo_label.setPixmap(pixmap)
@@ -180,7 +180,7 @@ class MyWidget(QWidget):
         self.spinner.setAlignment(Qt.AlignHCenter)
         spinner_size = 48
         self.spinner.setFixedSize(spinner_size, spinner_size)
-        spinner_path = os.path.join(script_dir, "assets", "spinner.gif")
+        spinner_path = os.path.join(project_root, "assets", "spinner.gif")
         self.movie = QMovie(spinner_path)
         self.movie.setScaledSize(QSize(spinner_size, spinner_size))
         self.spinner.setMovie(self.movie)

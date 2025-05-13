@@ -1,5 +1,8 @@
 Set-Location -Path $PSScriptRoot
 
+# Move up to the project root (src's parent)
+Set-Location -Path (Join-Path $PSScriptRoot "..")
+
 # Check if python3.11 is available in the PATH
 $pythonVersion = & python --version 2>&1
 
@@ -49,7 +52,7 @@ if (Test-Path $activateScript) {
 
 # Install dependencies
 Write-Host "Installing dependencies..."
-pip install -r requirements.txt
+pip install -r src\requirements.txt
 
 # Confirm dependencies are installed
 Write-Host "Dependencies installed successfully."
@@ -58,7 +61,7 @@ Write-Host "Setup complete."
 
 # Start the GUI application
 Write-Host "Starting GUI application..."
-python gui.py
+python src\gui.py
 
 
 pause
