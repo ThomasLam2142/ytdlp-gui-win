@@ -1,4 +1,4 @@
-from PySide6.QtWidgets import QApplication, QWidget, QVBoxLayout, QLineEdit, QLabel, QPushButton, QComboBox
+from PySide6.QtWidgets import QApplication, QWidget, QVBoxLayout, QLineEdit, QLabel, QPushButton, QComboBox, QFileDialog, QHBoxLayout
 from PySide6.QtCore import Qt, QThread, Signal, QSize
 from PySide6.QtGui import QMovie, QPixmap, QColor
 import sys
@@ -50,15 +50,19 @@ class FetchFormatsThread(QThread):
 class DownloadThread(QThread):
     finished = Signal()
 
-    def __init__(self, url, format_id):
+    def __init__(self, url, format_id, output_location):
         super().__init__()
         self.url = url
         self.format_id = format_id
+        self.output_location = output_location
 
     def run(self):
         ffmpeg_path = imageio_ffmpeg.get_ffmpeg_exe()
+        # Use output_location if specified, else current directory
+        output_dir = self.output_location if self.output_location else os.getcwd()
+        outtmpl = os.path.join(output_dir, '%(title)s.%(ext)s')
         ydl_opts = {
-            'outtmpl': '%(title)s.%(ext)s',
+            'outtmpl': outtmpl,
             'format': self.format_id,
             'ffmpeg_location': ffmpeg_path
         }
@@ -141,6 +145,25 @@ class MyWidget(QWidget):
         for widget in [self.label, self.input, self.check_button, self.url_error_label]:
             add_centered(center_layout, widget)
 
+        # Output location input
+        output_location_layout = QHBoxLayout()
+        output_location_label = QLabel("Output Location:")
+        self.output_location_edit = QLineEdit()
+        self.output_location_edit.setFixedWidth(450)
+        self.output_location_edit.setText(os.getcwd())  # Default to current directory
+        self.output_location_edit.setPlaceholderText("Select output folder...")
+        self.output_location = os.getcwd()  # Default to current directory
+        browse_button = QPushButton("Browse")
+        browse_button.setFixedWidth(100)
+        browse_button.clicked.connect(self.on_browse_output_location)
+        output_location_layout.addWidget(output_location_label)
+        output_location_layout.addWidget(self.output_location_edit)
+        output_location_layout.addWidget(browse_button)
+        center_layout.addLayout(output_location_layout)
+
+        # Update self.output_location when text changes
+        self.output_location_edit.textChanged.connect(self.on_output_location_changed)
+
         # Dropdowns
         for label, name in dropdown_info:
             center_layout.addWidget(QLabel(label), alignment=Qt.AlignHCenter)
@@ -181,6 +204,15 @@ class MyWidget(QWidget):
         self.resolution_combo.currentIndexChanged.connect(self.on_resolution_selected)
         self.video_format_combo.currentIndexChanged.connect(self.on_video_format_selected)
         self.audio_format_combo.currentIndexChanged.connect(self.on_audio_format_selected)
+
+    def on_browse_output_location(self):
+        folder = QFileDialog.getExistingDirectory(self, "Select Output Folder", "")
+        if folder:
+            self.output_location_edit.setText(folder)
+
+    def on_output_location_changed(self, text):
+        self.output_location = text
+
 
     def update_combo(self, combo, items):
         """
@@ -295,7 +327,7 @@ class MyWidget(QWidget):
             self.download_button.setEnabled(False)
             self.show_spinner()
             # Start download thread
-            self.thread = DownloadThread(url, f"{video_format_id}+{audio_format_id}")
+            self.thread = DownloadThread(url, f"{video_format_id}+{audio_format_id}", self.output_location)
             self.thread.finished.connect(self.on_download_finished)
             self.thread.start()
 
